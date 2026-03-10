@@ -11,16 +11,16 @@ type transitionKey struct {
 // "any non-terminal → failed" and "any non-terminal → aborted" are handled
 // separately in ValidateTransition to avoid enumerating all combinations.
 var allowedTransitions = map[transitionKey]Actor{
-	{StateSpecDrafting, StateSpecInReview}:  ActorSupervisor,
-	{StateSpecInReview, StateSpecDrafting}:  ActorSupervisor,
-	{StateSpecInReview, StateSpecApproved}:  ActorSupervisor,
-	{StateSpecApproved, StateImplQueued}:    ActorDispatcher,
-	{StateImplQueued, StateImplementing}:    ActorSupervisor,
-	{StateImplementing, StateCodeInReview}:  ActorSupervisor,
-	{StateCodeInReview, StateFixingReview}:  ActorSupervisor,
-	{StateFixingReview, StateCodeInReview}:  ActorSupervisor,
-	{StateCodeInReview, StateVerified}:      ActorSupervisor,
-	{StateVerified, StateCompleted}:         ActorDispatcher,
+	{StateSpecDrafting, StateSpecInReview}: ActorSupervisor,
+	{StateSpecInReview, StateSpecDrafting}: ActorSupervisor,
+	{StateSpecInReview, StateSpecApproved}: ActorSupervisor,
+	{StateSpecApproved, StateImplQueued}:   ActorDispatcher,
+	{StateImplQueued, StateImplementing}:   ActorSupervisor,
+	{StateImplementing, StateCodeInReview}: ActorSupervisor,
+	{StateCodeInReview, StateFixingReview}: ActorSupervisor,
+	{StateFixingReview, StateCodeInReview}: ActorSupervisor,
+	{StateCodeInReview, StateVerified}:     ActorSupervisor,
+	{StateVerified, StateCompleted}:        ActorDispatcher,
 }
 
 // ValidateTransition checks whether a transition from → to by actor is allowed.

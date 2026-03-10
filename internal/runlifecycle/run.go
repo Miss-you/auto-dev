@@ -69,9 +69,9 @@ func NewRun(id string, opts ...RunOption) *Run {
 
 // CompletedEvidence captures the evidence required before transitioning to completed.
 type CompletedEvidence struct {
-	VerifyPassed        bool
-	SpecsSynced         bool
-	ChangeArchived      bool
+	VerifyPassed         bool
+	SpecsSynced          bool
+	ChangeArchived       bool
 	AllPRsMergedOrClosed bool
 }
 
@@ -79,8 +79,8 @@ type CompletedEvidence struct {
 type TransitionOption func(*transitionConfig)
 
 type transitionConfig struct {
-	reason    string
-	evidence  *CompletedEvidence
+	reason   string
+	evidence *CompletedEvidence
 }
 
 // WithReason attaches a reason string to the transition record.

@@ -18,6 +18,7 @@ make build    # go build ./...
 make test     # go test ./... -v -race
 make lint     # golangci-lint run ./...
 make fmt      # gofmt -w . && goimports -w .
+make fmt-check # verify formatting without mutating the worktree
 make clean    # go clean ./...
 ```
 
@@ -57,7 +58,8 @@ Use `/opsx:` commands (e.g., `/opsx:new`, `/opsx:continue`, `/opsx:apply`, `/ops
 - **Configuration:** Functional options pattern for constructors (`NewRun(id, WithReviewFixLimit(3))`).
 - **State types:** String-based enums for JSON serialization (`RunState`, `Actor`).
 - **Testing:** Table-driven tests, testify/assert, always run with `-race`.
-- **Linting:** golangci-lint with govet, errcheck, staticcheck, gofmt, ineffassign, unused enabled.
+- **Linting:** golangci-lint with govet, errcheck, staticcheck, ineffassign, unused enabled.
+- **Formatting:** `make fmt` rewrites files with `gofmt` and `goimports`; `make fmt-check` is the CI-safe verification target.
 
 ## Implementation Roadmap
 
