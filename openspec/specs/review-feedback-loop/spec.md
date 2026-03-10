@@ -29,4 +29,4 @@ The system SHALL enforce a maximum number of automated repair attempts before ha
 
 #### Scenario: Repair attempts exceed threshold
 - **WHEN** the configured review repair limit has been reached without a successful outcome
-- **THEN** the system marks the run for manual handling instead of continuing automated retries
+- **THEN** the system transitions the run to the failed terminal state (per run-lifecycle) instead of continuing automated retries, requiring human investigation before any further action
