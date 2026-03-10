@@ -44,6 +44,14 @@ func newTestProviderWithConfig(t *testing.T, handler http.Handler, cfg tasksourc
 	return tasksource.ExportNewGitHubProviderWithClient(client, cfg), ts
 }
 
+// writeJSON is a test helper that encodes v as JSON to w, failing the test on error.
+func writeJSON(t *testing.T, w http.ResponseWriter, v any) {
+	t.Helper()
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		t.Fatalf("encode JSON response: %v", err)
+	}
+}
+
 func TestGitHubProviderFetch(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/owner/repo/issues", func(w http.ResponseWriter, r *http.Request) {
@@ -73,7 +81,7 @@ func TestGitHubProviderFetch(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(issues)
+		writeJSON(t, w, issues)
 	})
 
 	provider, _ := newTestProvider(t, mux)
@@ -117,7 +125,8 @@ func TestGitHubProviderFetchPagination(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/owner/repo/issues", func(w http.ResponseWriter, r *http.Request) {
 		page := r.URL.Query().Get("page")
-		if page == "" || page == "1" {
+		switch {
+		case page == "" || page == "1":
 			// First page: set Link header pointing to page 2
 			linkURL := fmt.Sprintf("<%s/repos/owner/repo/issues?page=2>; rel=\"next\"", "http://"+r.Host)
 			w.Header().Set("Link", linkURL)
@@ -132,8 +141,8 @@ func TestGitHubProviderFetchPagination(t *testing.T) {
 					"labels":   []map[string]any{},
 				},
 			}
-			json.NewEncoder(w).Encode(issues)
-		} else if page == "2" {
+			writeJSON(t, w, issues)
+		case page == "2":
 			// Second page: no Link header (last page)
 			w.Header().Set("Content-Type", "application/json")
 			issues := []map[string]any{
@@ -146,7 +155,7 @@ func TestGitHubProviderFetchPagination(t *testing.T) {
 					"labels":   []map[string]any{},
 				},
 			}
-			json.NewEncoder(w).Encode(issues)
+			writeJSON(t, w, issues)
 		}
 	})
 
@@ -181,7 +190,7 @@ func TestGitHubProviderFetchUsesConfiguredQueryParams(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode([]map[string]any{})
+		writeJSON(t, w, []map[string]any{})
 	})
 
 	provider, _ := newTestProviderWithConfig(t, mux, tasksource.GitHubConfig{
@@ -213,7 +222,7 @@ func TestGitHubProviderPostComment(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]any{
+		writeJSON(t, w, map[string]any{
 			"id":   1,
 			"body": "working on it",
 		})
@@ -245,7 +254,7 @@ func TestGitHubProviderAddLabels(t *testing.T) {
 		capturedBody = string(bodyBytes)
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode([]map[string]any{
+		writeJSON(t, w, []map[string]any{
 			{"name": "enhancement"},
 			{"name": "help wanted"},
 		})
@@ -291,7 +300,7 @@ func TestGitHubProviderRateLimitError(t *testing.T) {
 		w.Header().Set("X-RateLimit-Limit", "60")
 		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(resetTime, 10))
 		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]any{
+		writeJSON(t, w, map[string]any{
 			"message":           "API rate limit exceeded",
 			"documentation_url": "https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting",
 		})
@@ -318,7 +327,7 @@ func TestGitHubProviderAuthFailure(t *testing.T) {
 	mux.HandleFunc("/repos/owner/repo/issues", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]any{
+		writeJSON(t, w, map[string]any{
 			"message":           "Bad credentials",
 			"documentation_url": "https://docs.github.com/rest",
 		})
@@ -340,7 +349,7 @@ func TestGitHubProviderForbiddenAuthFailure(t *testing.T) {
 	mux.HandleFunc("/repos/owner/repo/issues", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]any{
+		writeJSON(t, w, map[string]any{
 			"message":           "Resource not accessible by integration",
 			"documentation_url": "https://docs.github.com/rest",
 		})
@@ -376,7 +385,7 @@ func TestGitHubProviderAbuseRateLimitError(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Retry-After", "60")
 		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]any{
+		writeJSON(t, w, map[string]any{
 			"message":           "You have exceeded a secondary rate limit. Please wait a few minutes before you try again.",
 			"documentation_url": "https://docs.github.com/rest/overview/resources-in-the-rest-api#secondary-rate-limits",
 		})

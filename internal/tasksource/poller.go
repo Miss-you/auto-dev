@@ -49,7 +49,11 @@ type Poller struct {
 }
 
 // NewPoller creates a new Poller with the given configuration.
+// It panics if cfg.Provider is nil.
 func NewPoller(cfg PollerConfig) *Poller {
+	if cfg.Provider == nil {
+		panic("tasksource: NewPoller requires a non-nil Provider")
+	}
 	interval := cfg.Interval
 	if interval <= 0 {
 		interval = DefaultPollInterval
@@ -77,24 +81,8 @@ func (p *Poller) Run(ctx context.Context) error {
 	defer ticker.Stop()
 
 	// Do an immediate first poll before waiting for the first tick.
-	if err := p.poll(ctx); err != nil {
-		if errors.Is(err, ErrAuthFailure) {
-			return err
-		}
-		var rateLimitErr *RateLimitError
-		if errors.As(err, &rateLimitErr) {
-			waitDuration := time.Until(rateLimitErr.RetryAfter)
-			if waitDuration > 0 {
-				slog.Warn("rate limited on initial poll, backing off", "wait", waitDuration)
-				select {
-				case <-ctx.Done():
-					return nil
-				case <-time.After(waitDuration):
-				}
-			}
-		} else {
-			slog.Warn("poll error on initial cycle", "error", err)
-		}
+	if err := p.handlePollError(ctx, p.poll(ctx)); err != nil {
+		return err
 	}
 
 	for {
@@ -102,28 +90,8 @@ func (p *Poller) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			if err := p.poll(ctx); err != nil {
-				if errors.Is(err, ErrAuthFailure) {
-					return err
-				}
-
-				// Handle rate limit: wait until RetryAfter.
-				var rateLimitErr *RateLimitError
-				if errors.As(err, &rateLimitErr) {
-					waitDuration := time.Until(rateLimitErr.RetryAfter)
-					if waitDuration > 0 {
-						slog.Warn("rate limited, backing off", "wait", waitDuration)
-						select {
-						case <-ctx.Done():
-							return nil
-						case <-time.After(waitDuration):
-						}
-					}
-					continue
-				}
-
-				// Transient error: log and retry on next tick.
-				slog.Warn("poll error, will retry", "error", err)
+			if err := p.handlePollError(ctx, p.poll(ctx)); err != nil {
+				return err
 			}
 		}
 	}
@@ -166,5 +134,41 @@ func (p *Poller) poll(ctx context.Context) error {
 		slog.Debug("seen map reset", "after_cycles", p.seenMapResetCycles)
 	}
 
+	return nil
+}
+
+// handlePollError processes a poll error. Returns non-nil only for fatal errors
+// (ErrAuthFailure). Rate limit errors cause backoff; context cancellation and
+// transient errors are handled gracefully.
+func (p *Poller) handlePollError(ctx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// Context cancellation is a normal shutdown path.
+	if ctx.Err() != nil {
+		return nil
+	}
+
+	if errors.Is(err, ErrAuthFailure) {
+		return err
+	}
+
+	var rateLimitErr *RateLimitError
+	if errors.As(err, &rateLimitErr) {
+		waitDuration := time.Until(rateLimitErr.RetryAfter)
+		if waitDuration > 0 {
+			slog.Warn("rate limited, backing off", "wait", waitDuration)
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(waitDuration):
+			}
+		}
+		return nil
+	}
+
+	// Transient error: log and retry on next tick.
+	slog.Warn("poll error, will retry", "error", err)
 	return nil
 }

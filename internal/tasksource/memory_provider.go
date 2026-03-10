@@ -95,19 +95,10 @@ func cloneTasks(tasks []NormalizedTask) []NormalizedTask {
 
 	result := make([]NormalizedTask, len(tasks))
 	for i, task := range tasks {
-		result[i] = NormalizedTask{
-			ExternalID:  task.ExternalID,
-			ExternalKey: task.ExternalKey,
-			Title:       task.Title,
-			Body:        task.Body,
-			Labels:      cloneStrings(task.Labels),
-			Priority:    task.Priority,
-			SourceType:  task.SourceType,
-			SourceURL:   task.SourceURL,
-			Metadata:    cloneMetadata(task.Metadata),
-			CreatedAt:   task.CreatedAt,
-			UpdatedAt:   task.UpdatedAt,
-		}
+		clone := task // copy all value fields
+		clone.Labels = cloneStrings(task.Labels)
+		clone.Metadata = cloneMetadata(task.Metadata)
+		result[i] = clone
 	}
 	return result
 }
