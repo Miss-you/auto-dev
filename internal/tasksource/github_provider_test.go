@@ -125,8 +125,8 @@ func TestGitHubProviderFetchPagination(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/owner/repo/issues", func(w http.ResponseWriter, r *http.Request) {
 		page := r.URL.Query().Get("page")
-		switch {
-		case page == "" || page == "1":
+		switch page {
+		case "", "1":
 			// First page: set Link header pointing to page 2
 			linkURL := fmt.Sprintf("<%s/repos/owner/repo/issues?page=2>; rel=\"next\"", "http://"+r.Host)
 			w.Header().Set("Link", linkURL)
@@ -142,7 +142,7 @@ func TestGitHubProviderFetchPagination(t *testing.T) {
 				},
 			}
 			writeJSON(t, w, issues)
-		case page == "2":
+		case "2":
 			// Second page: no Link header (last page)
 			w.Header().Set("Content-Type", "application/json")
 			issues := []map[string]any{
